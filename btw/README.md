@@ -2,7 +2,7 @@
 
 Classic 4:3 DirectDraw preset for a legal Steam/GOG/retail copy of *Cossacks: Back to War*.
 
-Steam's `csemu.dll` already `LoadLibrary("DDRAW.DLL")`. The installer drops [DDrawCompat](https://github.com/narzoul/DDrawCompat) next to `dmcr.exe` as both `ddraw.dll` and `dciman32.dll`.
+Steam's `csemu.dll` LoadLibrary’s SYSTEM `ddraw.dll`. The installer drops [DDrawCompat](https://github.com/narzoul/DDrawCompat) next to `dmcr.exe` as `dciman32.dll` only.
 
 This is **not** Cossacks 1.52 / SDL2. That rewrite leaves DirectDraw; this one keeps it.
 
@@ -10,10 +10,13 @@ This is **not** Cossacks 1.52 / SDL2. That rewrite leaves DirectDraw; this one k
 
 | Goal | How |
 | --- | --- |
-| 4:3 as shipped in 2001-2002 | Internal mode locked to **1024x768** (Steam menu design size) or **800x600**. Widescreen modes are hidden. |
+| 4:3 as shipped in 2001-2002 | Internal mode locked to **1024x768** (Steam menu design size) or **800x600**. That framebuffer is pillarboxed onto the largest attached monitor. |
 | Close DirectDraw behaviour | DDrawCompat wraps `DirectDrawCreate` / Blt / Flip. Point filter, app color depth, no resolution-scale shader. |
-| Menu does not freeze | Borderless presentation + `FpsLimiter=msgloop(60)` so the UI thread cannot spin on Flip. |
-| Alt+Tab to desktop | `FullscreenMode=borderless` and `AltTabFix=noactivateapp`. No exclusive-mode device loss. |
+| Menu does not freeze | `FpsLimiter=msgloop(60)` so the UI thread cannot spin on Flip. |
+| Flip chain exists | `GetAttachedSurface(BACKBUFFER)` succeeds under DDrawCompat 0.7.1 in borderless. |
+| Picture is GDI + DirectDraw | `GdiInterops=all` and `FullscreenMode=borderless`. Exclusive D3D9 present blanks GDI; the menu is GDI. |
+| Largest attached monitor | Launcher picks the largest non-virtual display, writes `DisplayResolution` to that mode, and parks the cursor there. |
+| Alt+Tab to desktop | Borderless presentation. `AltTabFix=keepvidmem(1)` still covers lost surfaces. |
 
 ## Install (Windows 11)
 
@@ -35,7 +38,7 @@ Optional:
 Then:
 
 1. Steam -> *Cossacks: Back to War* -> Properties -> **disable the overlay**.
-2. Run `Cossacks Classic 4x3.bat` in the game `bin` folder (the installer writes it).
+2. Run `Cossacks Classic 4x3.bat` in the game `bin` folder. It starts `csbtw.exe` (required). Starting `dmcr.exe` directly fails with `LauncherInterfaceCheck error 2`.
 3. In video options keep **1024x768** or **800x600**.
 4. Shift+F11 opens the DDrawCompat overlay.
 

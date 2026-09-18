@@ -19,6 +19,13 @@ $launcher = Join-Path $bin 'Cossacks Classic 4x3.bat'
 if (Test-Path -LiteralPath $launcher) {
     Remove-Item -LiteralPath $launcher -Force
 }
+foreach ($name in @('CossacksClassic-Launch.ps1', 'DisplayTarget.ps1')) {
+    $extra = Join-Path $bin $name
+    if (Test-Path -LiteralPath $extra) {
+        Remove-Item -LiteralPath $extra -Force
+    }
+}
 
 Remove-CossacksCompatibilityFlags -GameBin $bin
+Remove-CossacksGpuPreference -GameBin $bin
 Write-Host "Removed classic DirectDraw preset from $bin"

@@ -38,19 +38,39 @@ foreach ($preset in @('classic', 'integer', 'menu-gdi-off')) {
 
 $classic = Get-Content -LiteralPath (Get-PresetPath -Preset classic) -Raw
 Assert-True ($classic -match 'DisplayAspectRatio = 4:3') 'classic preset forces 4:3'
-Assert-True ($classic -match 'FullscreenMode = borderless') 'classic preset is borderless for Alt+Tab'
+Assert-True ($classic -match 'FullscreenMode = borderless') 'classic preset is borderless so GDI and the flip chain can both present'
+Assert-True ($classic -match 'AltTabFix = keepvidmem\(1\)') 'classic preset keeps vidmem across Alt+Tab'
+Assert-True ($classic -match 'CompatFixes = nowindowborders') 'classic preset does not pin the Windows primary'
+Assert-True ($classic -notmatch 'singlemonitor') 'classic preset is not locked to the primary monitor'
+Assert-True ($classic -match 'GdiInterops = all') 'classic preset composites GDI onto the DirectDraw primary'
 Assert-True ($classic -match 'FpsLimiter = msgloop\(60\)') 'classic preset caps the menu loop'
 Assert-True ($classic -match 'BltFilter = point') 'classic preset keeps point blits'
 Assert-True ($classic -notmatch 'DisplayFilter = bilinear') 'classic preset does not bilinear-filter'
-Assert-True ($classic -match 'SupportedResolutions = 800x600, 1024x768') 'classic preset hides widescreen modes'
+Assert-True ($classic -match 'SupportedResolutions = native, 640x480, 800x600, 1024x768') 'classic preset keeps native modes for csemu init'
 
-$binCandidate = 'W:\SteamLibrary\steamapps\common\Cossacks Back to War\bin'
-if (Test-Path -LiteralPath $binCandidate) {
-    Assert-True (Test-CossacksBin $binCandidate) 'local Steam bin looks like Back to War'
+try {
+    $detectedBin = Get-CossacksBinPath
+    Assert-True (Test-CossacksBin $detectedBin) 'detected Steam bin looks like Back to War'
+}
+catch {
+    Write-Host 'SKIP detected Steam bin (no local install)'
 }
 
 Assert-True ((Get-GameRoot) -eq $gameRoot) 'module reports the btw game root'
 Assert-True ((Get-RepoRoot) -eq $repoRoot) 'module reports the repository root'
+
+# Arrange / Act / Assert: largest-monitor helper returns a real desktop mode
+$monitor = Get-LargestMonitor
+Assert-True ($monitor.Width -ge 640 -and $monitor.Height -ge 480) 'largest monitor reports a desktop mode'
+
+# Arrange / Act / Assert: DisplayResolution rewrite keeps other keys
+$iniTmp = Join-Path $env:TEMP 'cossacks-classic-ddraw-test.ini'
+Set-Content -LiteralPath $iniTmp -Value "DisplayResolution = desktop`r`nDisplayAspectRatio = 4:3`r`n" -NoNewline
+Set-IniDisplayResolution -Path $iniTmp -Width 1920 -Height 1080
+$rewritten = Get-Content -LiteralPath $iniTmp -Raw
+Assert-True ($rewritten -match 'DisplayResolution = 1920x1080') 'DisplayResolution is patched to the target monitor'
+Assert-True ($rewritten -match 'DisplayAspectRatio = 4:3') 'DisplayResolution patch leaves 4:3 in place'
+Remove-Item -LiteralPath $iniTmp -Force
 
 if ($failed -gt 0) {
     Write-Error "$failed assertion(s) failed"

@@ -1,6 +1,6 @@
 # Cossacks classic DirectDraw
 
-Windows 11 presets that keep the original GSC Cossacks games on a **4:3 DirectDraw** path: original framebuffer, point sampling, a menu that keeps pumping messages, and Alt+Tab that does not tear down exclusive fullscreen.
+Windows 11 presets that keep the original GSC Cossacks games on a **4:3 DirectDraw** path: original framebuffer, point sampling, a menu that keeps pumping messages, and Alt+Tab that does not drop the device.
 
 This repository contains **no game assets**. You already own the game. Each title lives in its own folder so patches do not share installers by accident.
 

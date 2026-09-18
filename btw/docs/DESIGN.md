@@ -2,14 +2,17 @@
 
 ## Constraints
 
-The Steam *Back to War* build is still a DirectDraw 2D engine. `dmcr.exe` loads `csemu.dll`; `csemu.dll` calls `LoadLibrary("DDRAW.DLL")` and `DirectDrawCreate`. The original 4:3 framebuffers are **800×600** and **1024×768**. Steam's own readme emulates **1024×768** specifically so the menu layout is correct.
+The Steam *Back to War* build is still a DirectDraw 2D engine. `dmcr.exe` loads `csemu.dll`; `csemu.dll` calls `LoadLibrary("DDRAW.DLL")` and `DirectDrawCreate`. The original 4:3 framebuffers are **800x600** and **1024x768**. Steam's own readme emulates **1024x768** specifically so the menu layout is correct.
+
+Steam's `csbtw.exe` exposes a `CSBTW_LAUNCHER` interface. `csemu.dll` calls `LauncherInterfaceCheck()` on startup; launching `dmcr.exe` alone returns error 2. The installer shortcut must start `csbtw.exe`.
+
 
 Windows 11 breaks the original contract in four ways that match the failures people hit:
 
 1. Exclusive fullscreen + lost primary surface → crash or black screen on Alt+Tab.
-2. Uncapped Flip / primary blits on a 144+ Hz desktop → menu thread never processes input (freeze).
-3. Enumerated desktop modes include 2560×1440 / 3840×2160 → HUD designed for 4:3 is either cropped or microscopic.
-4. Hybrid GPUs and extra virtual monitors (this machine has AMD + NVIDIA + a Meta virtual display) confuse `EnumDisplayDevices`.
+2. Uncapped Flip / primary blits on a high-refresh desktop → menu thread never processes input (freeze).
+3. Enumerated widescreen desktop modes → HUD designed for 4:3 is either cropped or microscopic.
+4. Hybrid GPUs and extra virtual monitors confuse `EnumDisplayDevices`.
 
 Community 1.52 (SDL2) solves all of that by **leaving DirectDraw**. That is the wrong trade for “close fidelity on DirectDraw instructions.”
 
@@ -19,22 +22,28 @@ cnc-ddraw also works, but it is a GLES/D3D9 reimplementation aimed at windowing 
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| `FullscreenMode` | `borderless` | Alt+Tab does not destroy an exclusive swap chain. |
+| `FullscreenMode` | `borderless` | Steam BTW still creates COMPLEX+FLIP and `GetAttachedSurface(BACKBUFFER)`. DDrawCompat 0.7.1 attaches that backbuffer in borderless. Exclusive D3D9 present eats GDI, which is the BTW menu. |
 | `DisplayAspectRatio` | `4:3` | Pillarbox; never stretch to 16:9. |
-| `DisplayFilter` | `point` (default) / `integer` (optional) | No bilinear smear. Integer is pixel-perfect but small on 1440p at 1024×768. |
+| `DisplayFilter` | `point` (default) / `integer` (optional) | No bilinear smear. Integer keeps whole-pixel scale and adds more pillarbox. |
 | `BltFilter` | `point` | CPU and GPU stretches stay nearest-neighbour. |
-| `RenderColorDepth` | `app` | Do not promote the 16-bit look to a 32-bit framebuffer. |
+| `RenderColorDepth` | `app` | Follow the application's colour depth. Original retail DirectDraw was 16-bit High Color; Steam BTW's `csemu` requests 32-bit. |
 | `ColorKeyMethod` | `alphatest(1)` | Native GPU color key on current drivers is wrong; alpha test is the working equivalent of `DDBLT_KEYSRC`. |
 | `ResolutionScale` | `app(1)` | No extra 3D render-target upscale. Cossacks is not that game. |
-| `SupportedResolutions` | `800x600, 1024x768` | Hide the desktop 16:9 modes from the in-game list. |
+| `SupportedResolutions` | `native` plus 4:3 classics | Steam `csemu` SetDisplayMode()s the desktop mode at init. Hiding it returns `887601C2` (`DDERR_UNSUPPORTEDMODE`). |
 | `FpsLimiter` | `msgloop(60)` | Menus often blit the primary without Flip; cap the message loop. |
 | `VSync` | `on` | Second brake on the same spin. |
-| `AltTabFix` | `noactivateapp(1)` | Do not tell DirectDraw the device was lost. Still notify the app so it can pause. |
-| `CpuAffinity` | `1` | This engine was not written for 16 cores. |
-| `CompatFixes` | `singlemonitor,nowindowborders` | Ignore the VR virtual monitor and stray Win32 chrome. |
-| `GdiInterops` | `all`, with `none` fallback | Menus mix GDI; if that path deadlocks, drop it. |
+| `AltTabFix` | `keepvidmem(1)` | Exclusive Flip loses the device on Alt+Tab. Keep the surfaces. |
+| `CpuAffinity` | `all` | Pinning a single core can starve the menu message pump. |
+| `CompatFixes` | `nowindowborders` | Do not force the Windows primary (`singlemonitor`). The launcher targets the largest attached monitor. |
+| `GdiInterops` | `all` | The BTW menu is GDI on the DirectDraw primary. `none` is a black screen with working hover sounds. |
 
-`dciman32.dll` is a copy of DDrawCompat. Cossacks titles sometimes `LoadLibrary` System32 `ddraw.dll`; that copy imports `dciman32`, which then loads from the game directory. Steam's `csemu` uses a bare `DDRAW.DLL` name, so `ddraw.dll` beside `dmcr.exe` is the primary hit. Installing both covers both loaders.
+Steam `csemu` LoadLibrary’s SYSTEM `ddraw.dll`. That import pulls `dciman32`; DDrawCompat in the game folder as `dciman32.dll` is Method 1. A local `ddraw.dll` double-wraps and fails init.
+
+Do not add a High DPI compatibility shim. `HIGHDPIAWARE` makes the process start already per-monitor DPI; DDrawCompat then fails `SetProcessDpiAwarenessContext` and present stays black.
+
+At every launch the bat rewrites `DisplayResolution` to the largest non-virtual monitor and moves the cursor there. The game framebuffer stays **1024x768** or **800x600** 4:3 and is pillarboxed onto that panel.
+
+`btw/tools/Test-DdrawPresent.ps1` replays `SetDisplayMode(1024,768,32)` + COMPLEX+FLIP + `GetAttachedSurface`. Use it to separate a black primary from `887601C2`.
 
 ## What we refuse to ship
 

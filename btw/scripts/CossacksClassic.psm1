@@ -1,6 +1,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'DisplayTarget.ps1')
+
 function Get-GameRoot {
     Split-Path -Parent $PSScriptRoot
 }
@@ -44,8 +46,8 @@ function Get-CossacksBinPath {
     }
 
     $known = @(
-        'W:\SteamLibrary\steamapps\common\Cossacks Back to War\bin',
-        'C:\Program Files (x86)\Steam\steamapps\common\Cossacks Back to War\bin'
+        "${env:ProgramFiles(x86)}\Steam\steamapps\common\Cossacks Back to War\bin",
+        "$env:ProgramFiles\Steam\steamapps\common\Cossacks Back to War\bin"
     )
     foreach ($path in $known) {
         if (Test-CossacksBin $path) { return $path }
@@ -216,23 +218,28 @@ function Install-DDrawCompatBinary {
         throw 'ddraw.dll was not in the DDrawCompat zip.'
     }
 
-    Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $GameBin 'ddraw.dll') -Force
     Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $GameBin 'dciman32.dll') -Force
+    $localDdraw = Join-Path $GameBin 'ddraw.dll'
+    if (Test-Path -LiteralPath $localDdraw) {
+        Remove-Item -LiteralPath $localDdraw -Force
+    }
     return $release
 }
 
 function Set-CossacksCompatibilityFlags {
     param([Parameter(Mandatory = $true)][string]$GameBin)
+    # DDrawCompat must be able to switch the process to per-monitor DPI.
+    # HIGHDPIAWARE in the compatibility layer blocks that and the present path goes black.
+    Remove-CossacksCompatibilityFlags -GameBin $GameBin
+}
 
-    $key = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers'
-    if (-not (Test-Path -LiteralPath $key)) {
-        New-Item -Path $key -Force | Out-Null
-    }
+function Remove-CossacksGpuPreference {
+    param([Parameter(Mandatory = $true)][string]$GameBin)
+    $key = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+    if (-not (Test-Path -LiteralPath $key)) { return }
     foreach ($name in @('dmcr.exe', 'csbtw.exe')) {
         $exe = Join-Path $GameBin $name
-        if (Test-Path -LiteralPath $exe) {
-            New-ItemProperty -Path $key -Name $exe -Value '~ HIGHDPIAWARE' -PropertyType String -Force | Out-Null
-        }
+        Remove-ItemProperty -Path $key -Name $exe -ErrorAction SilentlyContinue
     }
 }
 
@@ -250,7 +257,7 @@ function Get-SteamOverlayInstructions {
     return @(
         'In Steam: right-click Cossacks: Back to War -> Properties',
         'uncheck "Enable the Steam Overlay while in-game".',
-        'Launch with "Cossacks Classic 4x3.bat" instead of the Steam Play button.'
+        'Launch with "Cossacks Classic 4x3.bat" (it starts csbtw.exe, not dmcr.exe).'
     )
 }
 
@@ -258,16 +265,24 @@ function Write-Launcher {
     param(
         [Parameter(Mandatory = $true)][string]$GameBin
     )
+    foreach ($name in @('DisplayTarget.ps1', 'CossacksClassic-Launch.ps1')) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $GameBin $name) -Force
+    }
     $bat = @"
 @echo off
 setlocal
-cd /d "$GameBin"
-if exist dmcr.exe (
-  start "" /wait dmcr.exe
-) else (
-  echo dmcr.exe not found in $GameBin
+cd /d "%~dp0"
+if not exist csbtw.exe (
+  echo csbtw.exe not found. Start the game from Steam once, then retry.
   exit /b 1
 )
+if not exist CossacksClassic-Launch.ps1 (
+  echo CossacksClassic-Launch.ps1 missing. Re-run Install-CossacksClassic.ps1.
+  exit /b 1
+)
+rem Steam BTW's csemu.dll requires the CSBTW_LAUNCHER interface from csbtw.exe.
+rem Starting dmcr.exe directly raises LauncherInterfaceCheck error 2.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0CossacksClassic-Launch.ps1"
 "@
     $path = Join-Path $GameBin 'Cossacks Classic 4x3.bat'
     [IO.File]::WriteAllText($path, $bat)
@@ -299,6 +314,11 @@ Export-ModuleMember -Function @(
     'Install-DDrawCompatBinary',
     'Set-CossacksCompatibilityFlags',
     'Remove-CossacksCompatibilityFlags',
+    'Remove-CossacksGpuPreference',
+    'Get-AttachedDisplays',
+    'Get-LargestMonitor',
+    'Set-IniDisplayResolution',
+    'Move-CursorToMonitor',
     'Get-SteamOverlayInstructions',
     'Write-Launcher',
     'Enable-DirectPlayFeature'

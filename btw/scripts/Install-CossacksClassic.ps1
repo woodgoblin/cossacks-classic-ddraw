@@ -11,7 +11,7 @@
 .PARAMETER Preset
     classic: 4:3 pillarbox with point sampling (default).
     integer: integer scale, more black bars, true pixels.
-    menu-gdi-off: classic plus GdiInterops=none if the menu still freezes.
+    menu-gdi-off: classic with GdiInterops=none if GDI mixing freezes the menu.
 
 .PARAMETER SkipDownload
     Reuse a previously downloaded DDrawCompat zip in .cache.
@@ -49,17 +49,23 @@ foreach ($name in @('mode.dat', 'ddraw.dll', 'dciman32.dll', 'DDrawCompat.ini'))
 $presetPath = Get-PresetPath -Preset $Preset
 Copy-Item -LiteralPath $presetPath -Destination (Join-Path $bin 'DDrawCompat.ini') -Force
 Copy-Item -LiteralPath $presetPath -Destination (Join-Path $bin 'DDrawCompat-dmcr.ini') -Force
+$monitor = Get-LargestMonitor
+foreach ($ini in @('DDrawCompat.ini', 'DDrawCompat-dmcr.ini')) {
+    Set-IniDisplayResolution -Path (Join-Path $bin $ini) -Width $monitor.Width -Height $monitor.Height
+}
+Write-Host ("Largest monitor: {0}x{1} ({2})" -f $monitor.Width, $monitor.Height, $monitor.DeviceString)
 
 if (-not $SkipDownload) {
     $release = Install-DDrawCompatBinary -GameBin $bin
-    Write-Host "DDrawCompat $($release.Tag) installed as ddraw.dll and dciman32.dll"
+    Write-Host "DDrawCompat $($release.Tag) installed as dciman32.dll (Cossacks Method 1; no local ddraw.dll)"
 }
-elseif (-not (Test-Path -LiteralPath (Join-Path $bin 'ddraw.dll'))) {
-    throw 'ddraw.dll is missing. Run without -SkipDownload.'
+elseif (-not (Test-Path -LiteralPath (Join-Path $bin 'dciman32.dll'))) {
+    throw 'dciman32.dll is missing. Run without -SkipDownload.'
 }
 
 Write-ModeDatResolution -Path (Join-Path $bin 'mode.dat') -Width ([int]$width) -Height ([int]$height) -Refresh 60
 Set-CossacksCompatibilityFlags -GameBin $bin
+Remove-CossacksGpuPreference -GameBin $bin
 $launcher = Write-Launcher -GameBin $bin
 
 if (-not $SkipDirectPlay) {
@@ -78,6 +84,6 @@ Write-Host "Installed."
 Write-Host "Launcher: $launcher"
 Get-SteamOverlayInstructions | ForEach-Object { Write-Host $_ }
 Write-Host ""
-Write-Host "In-game: keep 1024x768 (or 800x600). Shift+F11 opens DDrawCompat overlay."
-Write-Host "If the menu freezes, rerun with -Preset menu-gdi-off"
+Write-Host "In-game: keep 1024x768 (or 800x600). That is the framebuffer; it is pillarboxed 4:3 on the largest monitor."
+Write-Host "Shift+F11 opens the DDrawCompat overlay."
 Write-Host "If you want true integer pixels, rerun with -Preset integer"

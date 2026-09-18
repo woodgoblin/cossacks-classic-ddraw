@@ -1,0 +1,10 @@
+vendor/
+.cache/
+*.dll
+*.pdb
+*.log
+*.dmp
+*.zip
+DDrawCompatOverlay*.ini
+Thumbs.db
+.DS_Store

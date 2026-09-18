@@ -1,0 +1,16 @@
+This repository contains original installer scripts, configuration presets,
+and documentation only. It does not contain Cossacks game assets, executables,
+or other GSC Game World copyrighted material.
+
+You must own a legal copy of Cossacks: Back to War (Steam, GOG, or retail).
+
+At install time the scripts download DDrawCompat from its upstream GitHub
+releases:
+
+  https://github.com/narzoul/DDrawCompat
+
+DDrawCompat is copyright Narzoul and licensed separately (LGPL). This project
+does not vendor that binary. See DDrawCompat's own LICENSE in the downloaded
+release.
+
+DirectPlay is a Windows optional feature owned by Microsoft.

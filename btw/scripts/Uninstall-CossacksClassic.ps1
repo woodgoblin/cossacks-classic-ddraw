@@ -19,7 +19,7 @@ $launcher = Join-Path $bin 'Cossacks Classic 4x3.bat'
 if (Test-Path -LiteralPath $launcher) {
     Remove-Item -LiteralPath $launcher -Force
 }
-foreach ($name in @('CossacksClassic-Launch.ps1', 'DisplayTarget.ps1')) {
+foreach ($name in @('CossacksClassic-Launch.ps1', 'DisplayTarget.ps1', 'dmcr.exe.manifest', 'csbtw.exe.manifest')) {
     $extra = Join-Path $bin $name
     if (Test-Path -LiteralPath $extra) {
         Remove-Item -LiteralPath $extra -Force

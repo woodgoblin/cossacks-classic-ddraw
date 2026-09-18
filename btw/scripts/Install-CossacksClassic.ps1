@@ -49,11 +49,13 @@ foreach ($name in @('mode.dat', 'ddraw.dll', 'dciman32.dll', 'DDrawCompat.ini'))
 $presetPath = Get-PresetPath -Preset $Preset
 Copy-Item -LiteralPath $presetPath -Destination (Join-Path $bin 'DDrawCompat.ini') -Force
 Copy-Item -LiteralPath $presetPath -Destination (Join-Path $bin 'DDrawCompat-dmcr.ini') -Force
-$monitor = Get-LargestMonitor
-foreach ($ini in @('DDrawCompat.ini', 'DDrawCompat-dmcr.ini')) {
-    Set-IniDisplayResolution -Path (Join-Path $bin $ini) -Width $monitor.Width -Height $monitor.Height
-}
-Write-Host ("Largest monitor: {0}x{1} ({2})" -f $monitor.Width, $monitor.Height, $monitor.DeviceString)
+$inis = @(
+    (Join-Path $bin 'DDrawCompat.ini'),
+    (Join-Path $bin 'DDrawCompat-dmcr.ini')
+)
+$monitor = Initialize-CossacksPresentTarget -IniPath $inis
+Write-Host ("Largest monitor: native {0}x{1} ({2})" -f $monitor.NativeWidth, $monitor.NativeHeight, $monitor.DeviceString)
+Write-Host ("SupportedResolutions: {0}" -f (Get-SupportedResolutionValue))
 
 if (-not $SkipDownload) {
     $release = Install-DDrawCompatBinary -GameBin $bin

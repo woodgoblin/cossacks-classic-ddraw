@@ -13,10 +13,9 @@ This is **not** Cossacks 1.52 / SDL2. That rewrite leaves DirectDraw; this one k
 | 4:3 as shipped in 2001-2002 | Internal mode locked to **1024x768** (Steam menu design size) or **800x600**. That framebuffer is pillarboxed onto the largest attached monitor. |
 | Close DirectDraw behaviour | DDrawCompat wraps `DirectDrawCreate` / Blt / Flip. Point filter, app color depth, no resolution-scale shader. |
 | Menu does not freeze | `FpsLimiter=msgloop(60)` so the UI thread cannot spin on Flip. |
-| Flip chain exists | `GetAttachedSurface(BACKBUFFER)` succeeds under DDrawCompat 0.7.1 in borderless. |
-| Picture is GDI + DirectDraw | `GdiInterops=all` and `FullscreenMode=borderless`. Exclusive D3D9 present blanks GDI; the menu is GDI. |
-| Largest attached monitor | Launcher picks the largest non-virtual display, writes `DisplayResolution` to that mode, and parks the cursor there. |
-| Alt+Tab to desktop | Borderless presentation. `AltTabFix=keepvidmem(1)` still covers lost surfaces. |
+| Picture is GDI + DirectDraw | `FullscreenMode=borderless`, `GdiInterops=all`, `DpiAwareness=app`. Exclusive Present hides GDI. Forcing per-monitor DPI after `csemu` starts unaware also blacks the menu. |
+| Largest attached monitor | Launcher picks the attached panel with the most native pixels, restores **that panel only** if its mode was changed, writes its native mode into `DisplayResolution`, and parks the cursor there. Other monitors are left alone. `dmcr.exe.manifest` makes that process DPI-aware so `SetDisplayMode` asks for that same native size. |
+| Alt+Tab to desktop | `AltTabFix=keepvidmem(1)` so surfaces stay allocated. |
 
 ## Install (Windows 11)
 

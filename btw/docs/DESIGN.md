@@ -22,26 +22,26 @@ cnc-ddraw also works, but it is a GLES/D3D9 reimplementation aimed at windowing 
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| `FullscreenMode` | `borderless` | Steam BTW still creates COMPLEX+FLIP and `GetAttachedSurface(BACKBUFFER)`. DDrawCompat 0.7.1 attaches that backbuffer in borderless. Exclusive D3D9 present eats GDI, which is the BTW menu. |
+| `FullscreenMode` | `borderless` | Exclusive D3D9 Present hides the GDI menu (hover sounds, black picture). Borderless keeps GDI + Flip on the same primary. |
 | `DisplayAspectRatio` | `4:3` | Pillarbox; never stretch to 16:9. |
 | `DisplayFilter` | `point` (default) / `integer` (optional) | No bilinear smear. Integer keeps whole-pixel scale and adds more pillarbox. |
 | `BltFilter` | `point` | CPU and GPU stretches stay nearest-neighbour. |
 | `RenderColorDepth` | `app` | Follow the application's colour depth. Original retail DirectDraw was 16-bit High Color; Steam BTW's `csemu` requests 32-bit. |
 | `ColorKeyMethod` | `alphatest(1)` | Native GPU color key on current drivers is wrong; alpha test is the working equivalent of `DDBLT_KEYSRC`. |
 | `ResolutionScale` | `app(1)` | No extra 3D render-target upscale. Cossacks is not that game. |
-| `SupportedResolutions` | `native` plus 4:3 classics | Steam `csemu` SetDisplayMode()s the desktop mode at init. Hiding it returns `887601C2` (`DDERR_UNSUPPORTEDMODE`). |
+| `SupportedResolutions` | `native` plus 4:3 classics plus current desktop sizes | Steam `csemu` `SetDisplayMode`s `GetSystemMetrics` at init. A DPI-unaware process sees a virtualized desktop size; if that mode is hidden the call is `887601C2`. The launcher adds the unaware size and every attached panel's physical mode. |
 | `FpsLimiter` | `msgloop(60)` | Menus often blit the primary without Flip; cap the message loop. |
 | `VSync` | `on` | Second brake on the same spin. |
-| `AltTabFix` | `keepvidmem(1)` | Exclusive Flip loses the device on Alt+Tab. Keep the surfaces. |
+| `AltTabFix` | `keepvidmem(1)` | Keep vidmem surfaces across focus changes. |
 | `CpuAffinity` | `all` | Pinning a single core can starve the menu message pump. |
-| `CompatFixes` | `nowindowborders` | Do not force the Windows primary (`singlemonitor`). The launcher targets the largest attached monitor. |
+| `CompatFixes` | `nowindowborders` | Do not use `singlemonitor`. The launcher makes the largest attached panel the Windows primary for the session. |
 | `GdiInterops` | `all` | The BTW menu is GDI on the DirectDraw primary. `none` is a black screen with working hover sounds. |
 
 Steam `csemu` LoadLibrary’s SYSTEM `ddraw.dll`. That import pulls `dciman32`; DDrawCompat in the game folder as `dciman32.dll` is Method 1. A local `ddraw.dll` double-wraps and fails init.
 
-Do not add a High DPI compatibility shim. `HIGHDPIAWARE` makes the process start already per-monitor DPI; DDrawCompat then fails `SetProcessDpiAwarenessContext` and present stays black.
+`DpiAwareness=app` so DDrawCompat does not change awareness after startup. `dmcr.exe.manifest` requests per-monitor DPI **before** `csemu` reads `GetSystemMetrics`. An unaware process asks for a virtualized desktop size; if that is not the present target, `SetDisplayMode` returns `887601C2`. Switching unaware → per-monitor *after* `csemu` has started blacks the GDI menu.
 
-At every launch the bat rewrites `DisplayResolution` to the largest non-virtual monitor and moves the cursor there. The game framebuffer stays **1024x768** or **800x600** 4:3 and is pillarboxed onto that panel.
+`DisplayResolution` is rewritten at launch to the largest attached monitor's **native physical** mode (most native pixels). That size must match what the now DPI-aware process will `SetDisplayMode`. The launcher restores **that panel only** if its mode was changed, and parks the cursor there. Other monitors are left alone. `SupportedResolutions` still includes the unaware `GetSystemMetrics` size as a fallback. The game framebuffer stays **1024x768** or **800x600** 4:3 and is pillarboxed onto that panel.
 
 `btw/tools/Test-DdrawPresent.ps1` replays `SetDisplayMode(1024,768,32)` + COMPLEX+FLIP + `GetAttachedSurface`. Use it to separate a black primary from `887601C2`.
 

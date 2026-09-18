@@ -261,6 +261,31 @@ function Get-SteamOverlayInstructions {
     )
 }
 
+function Get-DpiManifestText {
+    return @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
+  <assemblyIdentity type="win32" name="Cossacks.Classic.DirectDraw" version="1.0.0.0"/>
+  <asmv3:application>
+    <asmv3:windowsSettings xmlns:ws2005="http://schemas.microsoft.com/SMI/2005/WindowsSettings" xmlns:ws2016="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+      <ws2005:dpiAware>true/pm</ws2005:dpiAware>
+      <ws2016:dpiAwareness>PerMonitorV2</ws2016:dpiAwareness>
+    </asmv3:windowsSettings>
+  </asmv3:application>
+</assembly>
+'@
+}
+
+function Write-DpiManifest {
+    param([Parameter(Mandatory = $true)][string]$GameBin)
+    $text = Get-DpiManifestText
+    foreach ($name in @('dmcr.exe', 'csbtw.exe')) {
+        $exe = Join-Path $GameBin $name
+        if (-not (Test-Path -LiteralPath $exe)) { continue }
+        [IO.File]::WriteAllText((Join-Path $GameBin ($name + '.manifest')), $text)
+    }
+}
+
 function Write-Launcher {
     param(
         [Parameter(Mandatory = $true)][string]$GameBin
@@ -268,6 +293,7 @@ function Write-Launcher {
     foreach ($name in @('DisplayTarget.ps1', 'CossacksClassic-Launch.ps1')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $GameBin $name) -Force
     }
+    Write-DpiManifest -GameBin $GameBin
     $bat = @"
 @echo off
 setlocal
@@ -317,9 +343,21 @@ Export-ModuleMember -Function @(
     'Remove-CossacksGpuPreference',
     'Get-AttachedDisplays',
     'Get-LargestMonitor',
+    'Get-AdapterNativeMode',
+    'Test-PanelDesktopMode',
+    'Restore-MonitorNativeMode',
+    'Set-PrimaryMonitor',
+    'Initialize-CossacksPresentTarget',
+    'Get-DpiVirtualizedDesktopSize',
+    'Get-MonitorPresentSize',
+    'Get-SupportedResolutionValue',
     'Set-IniDisplayResolution',
+    'Set-IniSupportedResolutions',
+    'Update-CossacksPresentIni',
     'Move-CursorToMonitor',
     'Get-SteamOverlayInstructions',
     'Write-Launcher',
+    'Get-DpiManifestText',
+    'Write-DpiManifest',
     'Enable-DirectPlayFeature'
 )

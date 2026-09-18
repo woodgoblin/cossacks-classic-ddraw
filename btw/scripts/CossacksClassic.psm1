@@ -1,8 +1,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Get-RepoRoot {
+function Get-GameRoot {
     Split-Path -Parent $PSScriptRoot
+}
+
+function Get-RepoRoot {
+    Split-Path -Parent (Get-GameRoot)
 }
 
 function Get-SteamPath {
@@ -158,14 +162,14 @@ function Get-PresetPath {
         'integer'      = 'DDrawCompat.integer.ini'
         'menu-gdi-off' = 'DDrawCompat.menu-gdi-off.ini'
     }
-    Join-Path (Join-Path (Get-RepoRoot) 'presets') $map[$Preset]
+    Join-Path (Join-Path (Get-GameRoot) 'presets') $map[$Preset]
 }
 
 function Get-DDrawCompatRelease {
     param([string]$Tag = 'v0.7.1')
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/narzoul/DDrawCompat/releases?per_page=10' -Headers @{
-        'User-Agent' = 'cossacks-btw-classic-ddraw'
+        'User-Agent' = 'cossacks-classic-ddraw'
     }
     $release = $releases | Where-Object { $_.tag_name -eq $Tag } | Select-Object -First 1
     if (-not $release) {
@@ -280,6 +284,7 @@ function Enable-DirectPlayFeature {
 }
 
 Export-ModuleMember -Function @(
+    'Get-GameRoot',
     'Get-RepoRoot',
     'Get-SteamPath',
     'Test-CossacksBin',

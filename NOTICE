@@ -2,7 +2,8 @@ This repository contains original installer scripts, configuration presets,
 and documentation only. It does not contain Cossacks game assets, executables,
 or other GSC Game World copyrighted material.
 
-You must own a legal copy of Cossacks: Back to War (Steam, GOG, or retail).
+You must own a legal copy of the Cossacks title you are patching
+(Steam, GOG, or retail).
 
 At install time the scripts download DDrawCompat from its upstream GitHub
 releases:

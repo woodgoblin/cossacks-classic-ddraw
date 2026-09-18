@@ -45,5 +45,5 @@ cnc-ddraw also works, but it is a GLES/D3D9 reimplementation aimed at windowing 
 
 ## Verification
 
-1. `scripts/Test-CossacksClassic.ps1` — preset text and `mode.dat` rewrite.
+1. `btw/scripts/Test-CossacksClassic.ps1` - preset text and `mode.dat` rewrite.
 2. Manual: install, launch the bat file, confirm pillarboxed 4:3, open the menu and wait, Alt+Tab to desktop and back without a crash.

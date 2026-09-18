@@ -1,7 +1,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$root = Split-Path -Parent $PSScriptRoot
+$gameRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $gameRoot
 Import-Module -Force -Name (Join-Path $PSScriptRoot 'CossacksClassic.psm1')
 
 $failed = 0
@@ -48,7 +49,8 @@ if (Test-Path -LiteralPath $binCandidate) {
     Assert-True (Test-CossacksBin $binCandidate) 'local Steam bin looks like Back to War'
 }
 
-Assert-True ((Get-RepoRoot) -eq $root) 'module reports the repository root'
+Assert-True ((Get-GameRoot) -eq $gameRoot) 'module reports the btw game root'
+Assert-True ((Get-RepoRoot) -eq $repoRoot) 'module reports the repository root'
 
 if ($failed -gt 0) {
     Write-Error "$failed assertion(s) failed"
